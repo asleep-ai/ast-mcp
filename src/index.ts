@@ -1,79 +1,71 @@
-import express from 'express';
 import { z } from 'zod';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-// Basic server configuration
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+// Basic configuration
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+
+// Create MCP server
+const server = new McpServer({
+  name: 'ast-mcp',
+  version: '0.1.0'
+});
 
 // Tool registry
 interface Tool {
   name: string;
   description: string;
-  schema: z.ZodObject<any>;
+  schema: {
+    [key: string]: z.ZodType<any>;
+  };
   handler: (params: any) => Promise<any>;
 }
 
 const tools: Record<string, Tool> = {};
 
-// Register a tool
+// Register a tool with both our internal registry and MCP server
 function registerTool(tool: Tool) {
   tools[tool.name] = tool;
+  
+  // Register tool with MCP server
+  server.tool(
+    tool.name,
+    tool.schema,
+    async (params: any) => {
+      const result = await tool.handler(params);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }]
+      };
+    }
+  );
+  
   console.log(`Tool registered: ${tool.name}`);
 }
-
-// Setup Express server
-const app = express();
-app.use(express.json());
-
-// MCP endpoints
-app.post('/invoke', async (req, res) => {
-  try {
-    const { tool, params } = req.body;
-    
-    if (!tool || !tools[tool]) {
-      return res.status(404).json({ error: `Tool '${tool}' not found` });
-    }
-    
-    const selectedTool = tools[tool];
-    const validationResult = selectedTool.schema.safeParse(params);
-    
-    if (!validationResult.success) {
-      return res.status(400).json({ error: 'Invalid parameters', details: validationResult.error });
-    }
-    
-    const result = await selectedTool.handler(params);
-    return res.json({ result });
-  } catch (error) {
-    console.error('Error invoking tool:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/tools', (req, res) => {
-  const toolsList = Object.values(tools).map(tool => ({
-    name: tool.name,
-    description: tool.description,
-    schema: tool.schema.shape
-  }));
-  
-  res.json({ tools: toolsList });
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`MCP server running on port ${PORT} with log level ${LOG_LEVEL}`);
-});
 
 // Example tool registration
 registerTool({
   name: 'echo',
   description: 'Echoes back the input message',
-  schema: z.object({
+  schema: {
     message: z.string().describe('The message to echo back')
-  }),
+  },
   handler: async (params) => {
     return { message: params.message };
   }
 });
+
+// Start server with stdio transport
+async function startServer() {
+  try {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.log(`MCP server running with stdio transport, log level: ${LOG_LEVEL}`);
+  } catch (error) {
+    console.error('Error starting MCP server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export { registerTool };
