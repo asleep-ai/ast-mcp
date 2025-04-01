@@ -1,9 +1,29 @@
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import axios from 'axios';
 
 // Basic configuration
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const AST_ID = process.env.AST_ID;
+const AST_API_KEY = process.env.AST_API_KEY;
+const API_BASE_URL = 'https://api.agent-a.asleep.ai';
+
+// Validate required environment variables
+if (!AST_ID || !AST_API_KEY) {
+  console.error('Error: AST_ID and AST_API_KEY environment variables are required');
+  process.exit(1);
+}
+
+// Create API client for Asleep.ai
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': AST_API_KEY,
+    'x-ast-id': AST_ID
+  }
+});
 
 // Create MCP server
 const server = new McpServer({
@@ -42,15 +62,48 @@ function registerTool(tool: Tool) {
   console.log(`Tool registered: ${tool.name}`);
 }
 
-// Example tool registration
+// Deep Insight tool for sleep analysis
 registerTool({
-  name: 'echo',
-  description: 'Echoes back the input message',
-  schema: {
-    message: z.string().describe('The message to echo back')
-  },
+  name: 'deep_insight',
+  description: 'Analyzes sleep data and provides insights',
+  schema: {},
   handler: async (params) => {
-    return { message: params.message };
+    try {
+      // Log request for debugging
+      if (LOG_LEVEL === 'debug') {
+        console.log('Sending deep_insight request with params:', params);
+      }
+
+      // Prepare request payload
+      const payload = {
+        data: {
+          type: "deep_insight"
+        }
+      };
+
+      // Send request to the Asleep.ai API
+      const response = await apiClient.post('/v1/responses', payload);
+      
+      // Return the response data
+      return response.data;
+    } catch (error) {
+      // Handle errors
+      console.error('Error in deep_insight tool:', error);
+      
+      if (axios.isAxiosError(error)) {
+        return {
+          error: true,
+          message: error.message,
+          status: error.response?.status,
+          details: error.response?.data
+        };
+      }
+      
+      return {
+        error: true,
+        message: 'An unexpected error occurred during sleep analysis'
+      };
+    }
   }
 });
 

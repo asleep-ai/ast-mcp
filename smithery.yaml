@@ -12,12 +12,20 @@ startCommand:
         enum: [debug, info, warn, error]
         default: info
         description: Log level for the server
+      ast_id:
+        type: string
+        description: Smithery AST ID for x-ast-id header
+      ast_api_key:
+        type: string
+        description: Smithery AST API key for x-api-key header
   commandFunction: |
     (config) => ({
       "command": "node",
       "args": ["dist/index.js"],
       "env": { 
         "PORT": config.port.toString(),
-        "LOG_LEVEL": config.logLevel
+        "LOG_LEVEL": config.logLevel,
+        "AST_ID": config.ast_id,
+        "AST_API_KEY": config.ast_api_key
       }
     })
