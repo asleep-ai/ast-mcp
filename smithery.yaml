@@ -1,0 +1,23 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      port:
+        type: number
+        default: 3000
+        description: Port for the MCP server
+      logLevel:
+        type: string
+        enum: [debug, info, warn, error]
+        default: info
+        description: Log level for the server
+  commandFunction: |
+    (config) => ({
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": { 
+        "PORT": config.port.toString(),
+        "LOG_LEVEL": config.logLevel
+      }
+    })

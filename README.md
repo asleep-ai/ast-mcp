@@ -14,5 +14,3 @@ This project implements the Model Control Protocol (MCP) specification for the A
 ## Usage
 Documentation will be provided as the project develops.
 
-## License
-Proprietary
