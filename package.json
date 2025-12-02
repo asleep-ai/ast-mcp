@@ -10,7 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.8.0",
+    "@modelcontextprotocol/sdk": "^1.24.0",
     "axios": "^1.6.2",
     "express": "^4.18.2",
     "zod": "^3.22.4"
